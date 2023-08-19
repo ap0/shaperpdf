@@ -1,4 +1,4 @@
-module github.com/ap0/shaper
+module github.com/ap0/shaperpdf
 
 go 1.20
 
