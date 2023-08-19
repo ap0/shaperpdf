@@ -19,9 +19,14 @@ const (
 	digitLimit               = 6
 )
 
-var dominoesPerRow int
-var numPages int
-var filename string
+var (
+	dominoesPerRow int
+	numPages       int
+	filename       string
+	orientation    string
+	pageSize       string
+	debug          bool
+)
 
 func dominoHeightForWidth(width float64) float64 {
 	return width * (scaleY / scaleX)
@@ -30,6 +35,9 @@ func dominoHeightForWidth(width float64) float64 {
 func main() {
 	flag.IntVar(&numPages, "pages", 10, "The number of pages to generate.")
 	flag.IntVar(&dominoesPerRow, "per-row", 5, "The number of dominoes per row.")
+	flag.StringVar(&orientation, "orientation", "L", "Page orientation: P (portrait) or L (landscape)")
+	flag.StringVar(&pageSize, "page-size", "Letter", "Page size: Letter, Legal, Tabloid, A3, A4, A5")
+	flag.BoolVar(&debug, "debug", false, "Enable debug logging")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "%s [OPTION]... [FILE]\n\n", os.Args[0])
@@ -59,7 +67,7 @@ func computeValidNumbers() []int {
 }
 
 func runPDF() error {
-	pdf := fpdf.New("L", "pt", "Letter", "")
+	pdf := fpdf.New(orientation, "pt", pageSize, "")
 
 	numbers := computeValidNumbers()
 	rand.Shuffle(len(numbers), func(i, j int) {
@@ -153,7 +161,7 @@ func isPalindrome(s string) bool {
 }
 
 func dbgLog(s ...any) {
-	if os.Getenv("DEBUG") == "1" {
+	if os.Getenv("DEBUG") == "1" || debug {
 		log.Println(s...)
 	}
 }
