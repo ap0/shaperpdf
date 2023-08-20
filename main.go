@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"os"
 
@@ -11,8 +12,10 @@ import (
 )
 
 const (
-	scaleY                   = 1
-	scaleX                   = 3.5
+	// These are in inches
+	globalDomHeight = 0.5
+	globalDomWidth  = 1.6875
+
 	radiusRatioToHeight      = 0.2
 	innerRadiusToHeightRatio = 0.5
 	spacingRatioToWidth      = 0.067
@@ -20,24 +23,20 @@ const (
 )
 
 var (
-	dominoesPerRow int
-	numPages       int
-	filename       string
-	orientation    string
-	pageSize       string
-	debug          bool
+	numPages    int
+	filename    string
+	orientation string
+	pageSize    string
+	debug       bool
+	spacing     float64
 )
-
-func dominoHeightForWidth(width float64) float64 {
-	return width * (scaleY / scaleX)
-}
 
 func main() {
 	flag.IntVar(&numPages, "pages", 10, "The number of pages to generate.")
-	flag.IntVar(&dominoesPerRow, "per-row", 5, "The number of dominoes per row.")
 	flag.StringVar(&orientation, "orientation", "L", "Page orientation: P (portrait) or L (landscape)")
 	flag.StringVar(&pageSize, "page-size", "Letter", "Page size: Letter, Legal, Tabloid, A3, A4, A5")
 	flag.BoolVar(&debug, "debug", false, "Enable debug logging")
+	flag.Float64Var(&spacing, "spacing", 1.0, "Spacing between rows as ratio of domino height")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "%s [OPTION]... [FILE]\n\n", os.Args[0])
@@ -46,7 +45,7 @@ func main() {
 
 	flag.Parse()
 	filename = flag.Arg(0)
-	if filename == "" || numPages <= 0 || dominoesPerRow <= 0 {
+	if filename == "" || numPages <= 0 {
 		flag.Usage()
 		return
 	}
@@ -67,7 +66,7 @@ func computeValidNumbers() []int {
 }
 
 func runPDF() error {
-	pdf := fpdf.New(orientation, "pt", pageSize, "")
+	pdf := fpdf.New(orientation, "in", pageSize, "")
 
 	numbers := computeValidNumbers()
 	rand.Shuffle(len(numbers), func(i, j int) {
@@ -75,29 +74,39 @@ func runPDF() error {
 	})
 
 	numIdx := 0
+outerLoop:
 	for i := 0; i < numPages; i++ {
 		pdf.AddPage()
 		pageWidth, pageHeight := pdf.GetPageSize()
-		marginLeft, marginTop, _, _ := pdf.GetMargins()
+		marginLeft, marginTop, marginRight, _ := pdf.GetMargins()
 		topX := marginLeft
 		topY := marginTop
-		overallDomWidth := float64(pageWidth-2*marginLeft) / float64(dominoesPerRow)
+		overallDomWidth := globalDomWidth * 1.1
 
-		domWidth := scaleX / ((spacingRatioToWidth * scaleX) + scaleX) * overallDomWidth
-		domHeight := dominoHeightForWidth(domWidth)
+		domsPerRow := int(math.Floor((pageWidth - marginLeft - marginRight) / overallDomWidth))
+
+		// domWidth := scaleX / ((spacingRatioToWidth * scaleX) + scaleX) * overallDomWidth
+		// domHeight := dominoHeightForWidth(domWidth)
+
+		domWidth := globalDomWidth
+		domHeight := globalDomHeight
 
 		dbgLog("domWidth: ", domWidth)
 		dbgLog("domHeight: ", domHeight)
+		dbgLog("domsPerRow: ", domsPerRow)
 
 		for {
-			for domRowIndex := 0; domRowIndex < dominoesPerRow; domRowIndex++ {
+			for domRowIndex := 0; domRowIndex < domsPerRow; domRowIndex++ {
 
-				dbgLog("topX: ", topX)
-				dbgLog("topY: ", topY)
+				// dbgLog("topX: ", topX)
+				// dbgLog("topY: ", topY)
 
+				if numIdx >= len(numbers) {
+					break outerLoop
+				}
 				number := numbers[numIdx]
 				numIdx++
-				dbgLog("using", number)
+				// dbgLog("using", number)
 
 				pdf.SetFillColor(0, 0, 0)
 				pdf.RoundedRect(topX, topY, domWidth, domHeight, domHeight*radiusRatioToHeight, "1234", "F")
@@ -107,8 +116,8 @@ func runPDF() error {
 				innerOffsetX := topX
 				innerOffsetY := topY
 
-				dbgLog("innerOffsetX", innerOffsetX)
-				dbgLog("innerOffsetY", innerOffsetY)
+				// dbgLog("innerOffsetX", innerOffsetX)
+				// dbgLog("innerOffsetY", innerOffsetY)
 				numStr := fmt.Sprintf("11%012b11", number)
 				for x := 0; x < 8; x++ {
 					for y := 0; y < 2; y++ {
@@ -128,13 +137,14 @@ func runPDF() error {
 
 				topX += overallDomWidth
 			}
-			topY += domHeight * 2
+			topY += domHeight + domHeight*spacing
 			topX = marginLeft
-			if topY > pageHeight-marginTop*2-domHeight {
+			if topY > pageHeight-marginTop-domHeight {
 				break
 			}
 		}
 	}
+
 	return pdf.OutputFileAndClose(filename)
 }
 
