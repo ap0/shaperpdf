@@ -17,8 +17,8 @@ const (
 	// measurement as there is.  If you don't size them the same as shaper tape
 	// or the workstation/plate it doesn't seem to work correctly.  They will scan
 	// but I think they have a certain expectation around the physical size of them as well.
-	globalDomHeight = 0.5    // 1/2
-	globalDomWidth  = 1.6875 // 1 1/16"
+	globalDomHeight = 0.5    // 1/2"
+	globalDomWidth  = 1.6875 // 1 11/16"
 
 	radiusRatioToHeight      = 0.2
 	innerRadiusToHeightRatio = 0.5
@@ -62,8 +62,8 @@ func main() {
 func computeValidNumbers() []int {
 	valid := make([]int, 0)
 	// We are looking for six of the twelve bits to be "on"
-	// The lowest is 000000111111 = 63
-	// The highest is 111111000000 = 4032
+	// The lowest possible value is 000000111111 = 63
+	// The highest possible value is 111111000000 = 4032
 	// Thus we can just ignore anything outside this range
 	for i := 0b111111; i <= 0b111111000000; i++ {
 		if isValid(i) {
